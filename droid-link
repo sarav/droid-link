@@ -1,0 +1,46 @@
+#!/usr/bin/perl -w
+use strict;
+use IO::Socket;
+
+my $server;
+my $client;
+my $pkt;
+
+$server = IO::Socket::INET->new( Proto => 'udp',
+				LocalPort => 10600,
+				Reuse => 1);
+
+while ($client = $server->recv($pkt, 4096)) {
+	my ($client_port, $client_ip) = sockaddr_in($client);
+	$client_ip = inet_ntoa($client_ip);
+
+	my ($version, $dev_id, $not_id, $ev_type, $data, $ev_contents);
+	$version = 1;
+	$data = "N/A";
+
+	# V1 test packet.
+	# $pkt = "007142d4deadbeef/48d3cd6cd3c27/PING/Test notification and/or message.";
+	# V2 test packet.
+	# $pkt = "v2/007142d4deafbeef/48d3cc2947b1f/PING/blah/Test notification and/or message.";
+
+
+	if ($pkt =~ m{^v\d+}) {
+		#version 2+
+		($version, $dev_id, $not_id, $ev_type, $data, $ev_contents)
+			= $pkt =~ m{ v(\d+) / ([[:xdigit:]]+) / ([[:xdigit:]]+) / ([^/]+) / ([^/]+) / (.*) }xms;
+	} else {
+		#version 1
+		($dev_id, $not_id, $ev_type, $ev_contents) = $pkt =~ m{ ([[:xdigit:]]+) / ([[:xdigit:]]+) / ([^/]+) / (.+) }xms;
+	}
+	
+	print "RAW: $pkt\n";
+	print "From: $client_ip\n";
+	print "Ver: $version\n";
+	print "Type: $ev_type\n";
+	print "Msg: $ev_contents\n";
+	print "Data: $data\n";
+	print "Dev ID: $dev_id\n";
+	print "Notification ID: $not_id\n";
+}
+
+close($server);
